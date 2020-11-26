@@ -1,4 +1,8 @@
-const needle = require('needle');
+import axios, {AxiosRequestConfig} from 'axios';
+import httpAdapter from 'axios/lib/adapters/http';
+import {Readable} from 'stream';
+import logger from './util/logger';
+import {BEARER_TOKEN} from './util/secrets';
 
 interface Rule {
   value: string;
@@ -19,57 +23,47 @@ interface RuleResponse {
   };
 }
 
-interface Tweet {
-  id: string;
-  text: string;
-}
+// interface Tweet {
+//   id: string;
+//   text: string;
+// }
 
-const token = process.env.BEARER_TOKEN;
-const rulesURL = 'https://api.twitter.com/2/tweets/search/stream/rules';
-const streamURL = 'https://api.twitter.com/2/tweets/search/stream';
+const base_url_v2 = 'https://api.twitter.com/2/';
+
+const APIv2 = axios.create({
+  baseURL: base_url_v2,
+  headers: {Authorization: `Bearer ${BEARER_TOKEN}`},
+});
+
+const rulesURLv2 = '/tweets/search/stream/rules';
+const streamURLv2 = '/tweets/search/stream';
 
 const rules = [{value: '@JohnNgu19909134 OR #JohnNgu19909134'}];
 
-async function setRules() {
+async function setRules(): Promise<RuleResponse> {
   const data = {
     add: rules,
   };
 
-  const response = await needle('post', rulesURL, data, {
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (response.statusCode !== 201) {
-    throw new Error(response.body);
-  }
-
-  return response.body;
+  return (await APIv2.post<RuleResponse>(rulesURLv2, data)).data;
 }
 
-function streamConnect() {
+async function streamConnect(): Promise<Readable> {
   //Listen to the stream
-  const options = {
+  const options: AxiosRequestConfig = {
     timeout: 20000,
+    responseType: 'stream',
+    adapter: httpAdapter,
   };
 
-  const stream = needle.get(
-    streamURL,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-    options
-  );
+  const response = await APIv2.get<Readable>(streamURLv2, options);
+  const stream = response.data;
 
   stream
     .on('data', (data: string) => {
       try {
         const json = JSON.parse(data);
-        console.log(json);
+        logger.debug(json);
       } catch (e) {
         // Keep alive signal received. Do nothing.
       }
@@ -84,20 +78,11 @@ function streamConnect() {
 }
 
 (async () => {
-  // let currentRules;
-
   try {
-    // Gets the complete list of rules currently applied to the stream
-    // currentRules = await getAllRules();
-
-    // Delete all rules. Comment the line below if you want to keep your existing rules.
-    // await deleteAllRules(currentRules);
-
     // Add rules to the stream. Comment the line below if you don't want to add new rules.
     await setRules();
   } catch (e) {
-    console.error(e);
-    // process.exit(-1);
+    logger.error(e);
   }
 
   // Listen to the stream.
@@ -105,11 +90,11 @@ function streamConnect() {
   // To avoid rate limites, this logic implements exponential backoff, so the wait time
   // will increase if the client cannot reconnect to the stream.
 
-  const filteredStream = streamConnect();
+  const filteredStream = await streamConnect();
   let timeout = 0;
   filteredStream.on('timeout', () => {
     // Reconnect on error
-    console.warn('A connection error occurred. Reconnecting…');
+    logger.warn('A connection error occurred. Reconnecting…');
     setTimeout(() => {
       timeout++;
       streamConnect();
