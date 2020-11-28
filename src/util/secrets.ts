@@ -15,4 +15,8 @@ if (fs.existsSync('.env')) {
 export const ENVIRONMENT = process.env.NODE_ENV;
 // const prod = ENVIRONMENT === 'production'; // Anything else is treated as 'dev'
 
+export const TWITTER_API_KEY = process.env.TWITTER_API_KEY;
+export const TWITTER_API_SECRET = process.env.TWITTER_API_SECRET;
+export const TWITTER_ACCESS_TOKEN = process.env.TWITTER_ACCESS_TOKEN;
+export const TWITTER_ACCESS_SECRET = process.env.TWITTER_ACCESS_SECRET;
 export const BEARER_TOKEN = process.env.BEARER_TOKEN;
