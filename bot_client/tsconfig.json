@@ -10,5 +10,8 @@
       "*": ["node_modules/*", "src/types/*"]
     }
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "ts-node": {
+    "files": true
+  }
 }
