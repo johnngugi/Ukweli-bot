@@ -1,0 +1,18 @@
+version: "3.8"
+services:
+  client:
+    image: johnngugi/ukweli-bot-client
+    build:
+      context: ./bot_client
+      target: builder
+    env_file: ./bot_client/.env
+    volumes:
+      - ./bot_client/src:/app/src
+      - ./bot_client/node_modules:/app/node_modules
+    command: npm run dev
+  api:
+    image: johnngugi/ukweli-bot-api
+    build:
+      context: ./ml_api
+    ports:
+      - "5000:5000"
