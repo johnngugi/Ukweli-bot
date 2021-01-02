@@ -52,14 +52,8 @@ async function setRules(): Promise<RuleResponse> {
 }
 
 function typeFromClassNumber(classNumber: number): string {
-  switch (classNumber) {
-    case 0:
-      return 'Fake News';
-    case 1:
-      return 'Real News';
-    default:
-      return 'Not Sure';
-  }
+  //TODO: return classification based on threshold
+  return 'False';
 }
 
 async function updateStatus(
@@ -96,11 +90,29 @@ async function processStreamInput(data: string) {
     const json: StreamResponse = JSON.parse(data);
     logger.debug(json);
 
-    // process tweet for to create input data for model prediction
+    // process tweet to create input data for model prediction
+    const likes = json.data.public_metrics.like_count;
+    const retweets = json.data.public_metrics.retweet_count;
+    const followers = json.includes.users[0].public_metrics.followers_count;
+    const following = json.includes.users[0].public_metrics.following_count;
+    const quote_count = json.data.public_metrics.quote_count;
+    const text = json.data.text;
+
+    let verified = json.includes.users[0].verified.toString();
+    verified = verified[0].toUpperCase() + verified.slice(1);
+
+    let isQuoteStatus = json.data.referenced_tweets
+      .some(element => {
+        return element.type === 'quoted';
+      })
+      .toString();
+    isQuoteStatus = isQuoteStatus[0].toUpperCase() + isQuoteStatus.slice(1);
+
     const reply_to_id = json.includes.users[0].id;
     const reply_to_username = json.includes.users[0].username;
 
     // predict
+    // call model api
     const classification = typeFromClassNumber(1);
 
     // send prediction as reply/direct message to sender

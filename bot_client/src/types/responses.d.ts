@@ -49,6 +49,12 @@ export type StreamResponse = {
     text: string;
     id: string;
     public_metrics: public_metrics_tweet;
+    referenced_tweets: [
+      {
+        type: string;
+        id: string;
+      }
+    ];
   };
   includes: {
     users: user_expansion[];
