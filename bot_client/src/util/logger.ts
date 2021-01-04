@@ -2,17 +2,19 @@ import winston from 'winston';
 
 const options: winston.LoggerOptions = {
   transports: [
-    new winston.transports.Console({
-      level: process.env.NODE_ENV === 'production' ? 'error' : 'debug',
-    }),
-    new winston.transports.File({filename: 'debug.log', level: 'debug'}),
+    new winston.transports.File({filename: 'error.log', level: 'error'}),
+    new winston.transports.File({filename: 'debug.log'}),
   ],
 };
 
 const logger = winston.createLogger(options);
 
 if (process.env.NODE_ENV !== 'production') {
-  logger.debug('Logging initialized at debug level');
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    })
+  );
 }
 
 export default logger;

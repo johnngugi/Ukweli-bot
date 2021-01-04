@@ -38,8 +38,8 @@ export type public_metrics_user = {
 
 export type user_expansion = {
   public_metrics: public_metrics_user;
-  username: string;
   verified: boolean;
+  username: string;
   name: string;
   id: string;
 };
@@ -59,4 +59,8 @@ export type StreamResponse = {
   includes: {
     users: user_expansion[];
   };
+};
+
+export type PredictionResponse = {
+  predictions: number[];
 };

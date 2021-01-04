@@ -6,6 +6,8 @@ services:
       context: ./bot_client
       target: builder
     env_file: ./bot_client/.env
+    environment:
+      BOT_API_HOST: api:5000
     volumes:
       - ./bot_client/src:/app/src
       - ./bot_client/node_modules:/app/node_modules
