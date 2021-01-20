@@ -22,7 +22,7 @@ def inference():
         json_data = request.get_json()
         _logger.info(f'Inputs: {json_data}')
 
-        result = predict(input_data=json_data)
+        result = predict(input_data=json_data['data'])
         _logger.info(f'Outputs: {result}')
 
         predictions = result.get('predictions')[0]

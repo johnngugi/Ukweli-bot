@@ -1,9 +1,10 @@
-import axios, {AxiosRequestConfig} from 'axios';
+import axios, {AxiosRequestConfig, AxiosResponse} from 'axios';
 import {PredictionResponse, RuleResponse, StreamResponse} from 'responses';
 import OAuth from 'oauth-1.0a';
 import * as crypto from 'crypto';
 import {Readable} from 'stream';
 import httpAdapter from 'axios/lib/adapters/http';
+import url from 'url';
 import logger from '../util/logger';
 import {
   BEARER_TOKEN,
@@ -33,7 +34,7 @@ const oauth = new OAuth({
 
 const base_url_v2 = 'https://api.twitter.com/2/';
 const base_url_v1 = 'https://api.twitter.com/1.1/';
-const bot_base_url = process.env.BOT_API_HOST;
+const bot_base_url = `http://${process.env.BOT_API_HOST}`;
 
 const APIv2 = axios.create({
   baseURL: base_url_v2,
@@ -70,11 +71,12 @@ function typeFromScore(score: number): boolean {
 }
 
 async function updateStatus(
-  newsType: string,
+  score: number,
   reply_to_username: string,
   reply_to_id: string
 ) {
-  const status = `@${reply_to_username}. This tweet has been classifed as: ${newsType} `;
+  const truthiness = typeFromScore(score);
+  const status = `@${reply_to_username}. This tweet has been classifed as: ${truthiness} with a certainty of ${score}`;
 
   const data = {
     status: status,
@@ -92,13 +94,14 @@ async function updateStatus(
     secret: TWITTER_ACCESS_SECRET!,
   };
 
-  return APIv1.post(statusesUpdatev1, {
-    data: data,
+  return APIv1.post(statusesUpdatev1, new url.URLSearchParams(data), {
     headers: oauth.toHeader(oauth.authorize(request_data, token)),
   });
 }
 
-async function predictionApi(parameters: object): Promise<PredictionResponse> {
+async function predictionApi(
+  parameters: object
+): Promise<AxiosResponse<PredictionResponse>> {
   return botApi.post(rnnInferenceUrl, {
     data: parameters,
   });
@@ -106,7 +109,7 @@ async function predictionApi(parameters: object): Promise<PredictionResponse> {
 
 async function processStreamInput(json: StreamResponse) {
   try {
-    logger.info(json);
+    logger.info('%o', json);
 
     // process tweet to create input data for model prediction
     const likes = json.data.public_metrics.like_count;
@@ -131,7 +134,7 @@ async function processStreamInput(json: StreamResponse) {
 
     isQuoteStatus = 'False';
 
-    const reply_to_id = json.includes.users[0].id;
+    const reply_to_id = json.data.id;
     const reply_to_username = json.includes.users[0].username;
 
     // call model api
@@ -146,20 +149,12 @@ async function processStreamInput(json: StreamResponse) {
       text: text,
     };
 
-    let classification;
     try {
-      logger.info('Model params: ', modelParams);
-      const predictionApiCall = await predictionApi(modelParams);
-      const score = predictionApiCall.predictions[0];
-      classification = typeFromScore(score);
-      logger.info('Classification given ', classification);
-      logger.info(`status update for user ${reply_to_username} ${reply_to_id}`);
+      const score = await callModelApi(modelParams);
+      logger.info('Classification given: ' + score);
 
-      await updateStatus(
-        classification.toString(),
-        reply_to_username,
-        reply_to_id
-      );
+      await updateStatus(score, reply_to_username, reply_to_id);
+      logger.info(`status update for user ${reply_to_username} ${reply_to_id}`);
     } catch (error) {
       logger.error('Prediction api error');
       logger.error(error.message + '\n' + error.stack);
@@ -167,6 +162,21 @@ async function processStreamInput(json: StreamResponse) {
   } catch (e) {
     logger.error(e.message + '\n' + e.stack);
   }
+}
+
+async function callModelApi(modelParams: {
+  favorites_median: number;
+  retweets_median: number;
+  followers_median: number;
+  friends_median: number;
+  statuses_median: number;
+  is_quote_status: string;
+  verified: string;
+  text: string;
+}): Promise<number> {
+  logger.info('Model params: %o', modelParams);
+  const predictionApiCall = (await predictionApi(modelParams)).data;
+  return predictionApiCall.predictions[0];
 }
 
 async function streamConnect(): Promise<Readable> {
