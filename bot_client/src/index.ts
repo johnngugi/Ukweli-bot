@@ -12,13 +12,21 @@ async function reconnect(timeout: number) {
 }
 
 async function streamTweets() {
-  const stream = await streamConnect();
   let timeout = 0;
-  stream.on('timeout', () => {
-    logger.warn('A connection error occurred. Reconnecting…');
-    timeout++;
-    reconnect(timeout);
-  });
+  try {
+    const stream = await streamConnect();
+    stream.on('timeout', () => {
+      logger.warn('Connection timeout. Reconnecting...');
+      timeout++;
+      reconnect(timeout);
+    });
+  } catch (error) {
+    if ('response' in error) {
+      if (error.response.status === 429) {
+        logger.error('Too many requests.');
+      }
+    }
+  }
 }
 
 streamTweets();
