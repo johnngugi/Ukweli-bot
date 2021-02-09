@@ -1,0 +1,37 @@
+{
+  "name": "ukewli-bot",
+  "version": "0.0.0",
+  "description": "",
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "files": [
+    "build/src"
+  ],
+  "license": "",
+  "keywords": [],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "gts lint",
+    "clean": "gts clean",
+    "compile": "tsc",
+    "fix": "gts fix",
+    "pretest": "npm run compile",
+    "posttest": "npm run lint",
+    "dev": "nodemon src/index.ts",
+    "start": "node build/src/index.js"
+  },
+  "devDependencies": {
+    "gts": "^3.0.2",
+    "nodemon": "^2.0.6",
+    "ts-node": "^9.1.1"
+  },
+  "dependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/node": "^14.14.17",
+    "axios": "^0.21.0",
+    "dotenv": "^8.2.0",
+    "oauth-1.0a": "^2.2.6",
+    "typescript": "^4.1.3",
+    "winston": "^3.3.3"
+  }
+}
