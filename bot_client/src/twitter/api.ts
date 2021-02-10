@@ -67,7 +67,7 @@ async function setRules(): Promise<RuleResponse> {
 }
 
 function typeFromScore(score: number): boolean {
-  return score > 0.5;
+  return score < 0.5;
 }
 
 async function updateStatus(
