@@ -17,10 +17,26 @@ export type RuleResponse = {
   };
 };
 
-// interface Tweet {
-//   id: string;
-//   text: string;
-// }
+export type Tweet = {
+  id: string;
+  text: string;
+  public_metrics: public_metrics_tweet;
+  entities: {
+    urls: [
+      {
+        url: string;
+        expanded_url: string;
+      }
+    ];
+  };
+  referenced_tweets: [
+    {
+      type: string;
+      id: string;
+    }
+  ];
+  author_id: string;
+};
 
 export type public_metrics_tweet = {
   retweet_count: number;
@@ -36,28 +52,28 @@ export type public_metrics_user = {
   listed_count: number;
 };
 
-export type user_expansion = {
-  public_metrics: public_metrics_user;
-  verified: boolean;
+export type User = {
   username: string;
-  name: string;
+  public_metrics: {
+    followers_count: number;
+    following_count: number;
+    tweet_count: number;
+    listed_count: number;
+  };
+  verified: boolean;
   id: string;
+  name: string;
+};
+
+export type UserResponse = {
+  data: User[];
 };
 
 export type StreamResponse = {
-  data: {
-    text: string;
-    id: string;
-    public_metrics: public_metrics_tweet;
-    referenced_tweets: [
-      {
-        type: string;
-        id: string;
-      }
-    ];
-  };
+  data: Tweet;
   includes: {
-    users: user_expansion[];
+    users: User[];
+    tweets: Tweet[];
   };
 };
 
