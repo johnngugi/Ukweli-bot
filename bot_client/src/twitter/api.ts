@@ -1,11 +1,19 @@
 import axios, {AxiosRequestConfig, AxiosResponse} from 'axios';
-import {PredictionResponse, RuleResponse, StreamResponse} from 'responses';
+import {
+  PredictionResponse,
+  RuleResponse,
+  StreamResponse,
+  User,
+  UserResponse,
+} from 'responses';
 import OAuth from 'oauth-1.0a';
 import * as crypto from 'crypto';
 import {Readable} from 'stream';
 import httpAdapter from 'axios/lib/adapters/http';
 import url from 'url';
 import logger from '../util/logger';
+import getArticle from '../util/articles';
+
 import {
   BEARER_TOKEN,
   TWITTER_ACCESS_SECRET,
@@ -13,6 +21,7 @@ import {
   TWITTER_API_KEY,
   TWITTER_API_SECRET,
 } from '../util/secrets';
+import {getReferencedTweet} from './utils';
 
 interface Errors {
   name: string;
@@ -50,12 +59,14 @@ const botApi = axios.create({
 });
 
 const streamURLv2 = '/tweets/search/stream';
+const rulesURLv2 = '/tweets/search/stream/rules';
+
+const usersURLv2 = '/users';
 
 const statusesUpdatev1 = '/statuses/update.json';
 
 const rnnInferenceUrl = '/v1/inference/rnn_model';
 
-const rulesURLv2 = '/tweets/search/stream/rules';
 const rules = [{value: '@JohnNgu19909134 OR #JohnNgu19909134'}];
 
 async function setRules(): Promise<RuleResponse> {
@@ -107,23 +118,49 @@ async function predictionApi(
   });
 }
 
+async function getReferencedUser(userId: string): Promise<User> {
+  const params = {
+    ids: userId,
+    'user.fields': 'verified,public_metrics',
+  };
+
+  const options: AxiosRequestConfig = {
+    params: params,
+  };
+
+  return (await APIv2.get<UserResponse>(usersURLv2, options)).data.data[0];
+}
+
 async function processStreamInput(json: StreamResponse) {
   try {
     logger.info('%o', json);
 
     // process tweet to create input data for model prediction
-    const likes = json.data.public_metrics.like_count;
-    const retweets = json.data.public_metrics.retweet_count;
-    const followers = json.includes.users[0].public_metrics.followers_count;
-    const following = json.includes.users[0].public_metrics.following_count;
-    const statuses = json.includes.users[0].public_metrics.tweet_count;
-    const text = json.data.text;
+    const referenced_tweet = getReferencedTweet(json);
+    const likes = referenced_tweet!.public_metrics.like_count;
+    const retweets = referenced_tweet!.public_metrics.retweet_count;
+
+    const user = await getReferencedUser(referenced_tweet!.author_id);
+    const followers = user.public_metrics.followers_count;
+    const following = user.public_metrics.following_count;
+    const statuses = user.public_metrics.tweet_count;
+
+    let text;
+    if ('urls' in referenced_tweet!.entities) {
+      // Use page text as input
+      const url = referenced_tweet!.entities.urls[0].url;
+      text = await getArticle(url);
+      logger.info('article: ' + url);
+    } else {
+      // Use tweet text as input
+      text = referenced_tweet!.text;
+    }
 
     let verified = json.includes.users[0].verified.toString();
     verified = verified[0].toUpperCase() + verified.slice(1);
 
     let isQuoteStatus;
-    if (json.data.referenced_tweets) {
+    if ('referenced_tweets' in referenced_tweet!) {
       isQuoteStatus = json.data.referenced_tweets
         .some(element => {
           return element.type === 'quoted';
@@ -160,6 +197,10 @@ async function processStreamInput(json: StreamResponse) {
       logger.error(error.message + '\n' + error.stack);
     }
   } catch (e) {
+    if ('response' in e) {
+      logger.error(e.config.url);
+      logger.error(e.config.method);
+    }
     logger.error(e.message + '\n' + e.stack);
   }
 }
@@ -181,7 +222,7 @@ async function callModelApi(modelParams: {
 
 async function streamConnect(): Promise<Readable> {
   const params = {
-    'tweet.fields': 'public_metrics,referenced_tweets',
+    'tweet.fields': 'author_id,public_metrics,referenced_tweets,entities',
     expansions: 'referenced_tweets.id,author_id',
     'user.fields': 'public_metrics,verified',
   };
