@@ -156,7 +156,7 @@ async function processStreamInput(json: StreamResponse) {
       text = referenced_tweet!.text;
     }
 
-    let verified = json.includes.users[0].verified.toString();
+    let verified = user.verified.toString();
     verified = verified[0].toUpperCase() + verified.slice(1);
 
     let isQuoteStatus;
