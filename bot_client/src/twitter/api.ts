@@ -78,7 +78,7 @@ async function setRules(): Promise<RuleResponse> {
 }
 
 function typeFromScore(score: number): boolean {
-  return score < 0.5;
+  return score <= 0.0;
 }
 
 async function updateStatus(
@@ -87,7 +87,7 @@ async function updateStatus(
   reply_to_id: string
 ) {
   const truthiness = typeFromScore(score);
-  const status = `@${reply_to_username}. This tweet has been classifed as: ${truthiness} with a certainty of ${score}`;
+  const status = `@${reply_to_username}. This tweet has been classifed as: ${truthiness}`;
 
   const data = {
     status: status,
